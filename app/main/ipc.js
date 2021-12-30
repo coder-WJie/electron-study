@@ -22,7 +22,6 @@ module.exports = function () {
   });
   signal.on('be-controlled', (data) => {
     sendMainWindow('control-state-change', data.remote, 2);
-    createControlWindow();
   });
 
   ipcMain.on('forward', (e, event, data) => {

@@ -6,6 +6,15 @@
 // import {desktopCapturer} from 'electron'
 const { desktopCapturer, ipcRenderer } = window.require('electron');
 
+// getScreenStream();
+
+ipcRenderer.on('offer', async (e, offer) => {
+  console.log('offer', offer);
+  debugger;
+  let answer = await createAnswer(offer);
+  ipcRenderer.send('forward', 'answer', { type: answer.type, sdp: answer.sdp });
+});
+
 async function getScreenStream() {
   // 先获取源
   const sources = await desktopCapturer.getSources({ types: ['screen'] });
@@ -25,20 +34,44 @@ async function getScreenStream() {
         },
       },
       (stream) => {
+        console.log('stream', stream);
         resolve(stream);
         // peer.emit('add-stream', stream);
       },
-      (err) => {
-        // handle err
-        console.log('err', err);
-      }
+      reject
     );
   });
 }
 
-getScreenStream();
 // 视频传输
 const pc = new window.RTCPeerConnection({});
+
+// onicecandidate
+// addIceCandidate
+// onicecandidate事件在RTCPeerConnection连接创建后就会调用
+pc.onicecandidate = function (e) {
+  console.log('candidate', JSON.stringify(e.candidate));
+  if (e.candidate) {
+    ipcRenderer.send(
+      'forward',
+      'puppet-candidate',
+      JSON.stringify(e.candidate)
+    );
+  }
+};
+ipcRenderer.on('candidate', (e, candidate) => {
+  console.log('收到控制端的---candidate',candidate);
+  addIceCandidate(candidate);
+});
+
+async function addIceCandidate(candidate) {
+  // 有个细节，在添加candidate的时候，只有在pc.remoteDescription设置上之后才能添加
+  // 而在设置上之前，需要将其先放到一个缓冲池中
+  if (!candidate || !candidate.type) return;
+  await pc.addIceCandidate(new RTCIceCandidate(candidate));
+}
+window.addIceCandidate = addIceCandidate;
+
 pc.ondatachannel = (e) => {
   console.log('datachannel', e);
   e.channel.onmessage = (e) => {
@@ -52,40 +85,6 @@ pc.ondatachannel = (e) => {
     ipcRenderer.send('robot', type, data);
   };
 };
-// onicecandidate
-// addIceCandidate
-// onicecandidate事件在RTCPeerConnection连接创建后就会调用
-pc.onicecandidate = function (e) {
-  console.log('candidate', JSON.stringify(e.candidate));
-  if (e.candidate) {
-    ipcRenderer.send('forward', 'puppet-candidate', e.candidate);
-  }
-};
-ipcRenderer.on('candidate', (e, candidate) => {
-  addIceCandidate(candidate);
-});
-
-let candidates = [];
-async function addIceCandidate(candidate) {
-  // 有个细节，在添加candidate的时候，只有在pc.remoteDescription设置上之后才能添加
-  // 而在设置上之前，需要将其先放到一个缓冲池中
-  if (candidate) {
-    candidates.push(candidate);
-  }
-
-  if (pc.remoteDescription && pc.remoteDescription.type) {
-    for (let i = 0; i < candidates.length; i++) {
-      await pc.addIceCandidate(new RTCIceCandidate(candidates[i]));
-    }
-    candidates = [];
-  }
-}
-window.addIceCandidate = addIceCandidate;
-
-ipcRenderer.on('offer', async (e, offer) => {
-  let answer = await createAnswer(offer);
-  ipcRenderer.send('forward', 'answer', { type: answer.type, sdp: answer.sdp });
-});
 
 async function createAnswer(offer) {
   let screenStream = await getScreenStream();

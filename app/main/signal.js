@@ -4,8 +4,8 @@ const EventEmitter = require('events')
 const signal = new EventEmitter()
 
 const ws = new WebSocket('ws://127.0.0.1:8010')
-//localhost:3000
-ws.on('open', function() {
+
+ws.on('open', function open() {
   console.log('connect success');
 });
 
