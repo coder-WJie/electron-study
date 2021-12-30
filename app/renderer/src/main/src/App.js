@@ -13,6 +13,7 @@ function App() {
   const [controlText, setControlText] = useState('');
   const login = async () => {
     let code = await ipcRenderer.invoke('login')
+    console.log('app.js---- code',code);
     setLocalCode(code)
   }
 
