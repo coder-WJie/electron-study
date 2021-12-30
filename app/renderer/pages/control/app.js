@@ -9,6 +9,8 @@ peer.on('add-stream', (stream) => {
 // 获取桌面流
 let video = document.getElementById('screen-video')
 function play(stream) {
+  console.log('DOM元素 ----- video',video);
+  console.log('桌面流播放------stream', stream);
     video.srcObject = stream
     video.onloadedmetadata = function() {
         video.play()
